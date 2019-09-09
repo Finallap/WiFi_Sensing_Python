@@ -3,7 +3,7 @@ from sklearn.preprocessing import LabelBinarizer
 from sklearn.model_selection import train_test_split
 from keras.layers import Dense, LSTM, Masking, Bidirectional, Dropout, TimeDistributed
 from keras.models import Sequential
-from keras.callbacks import LearningRateScheduler
+from keras.callbacks import LearningRateScheduler, ModelCheckpoint
 from keras.optimizers import Optimizer
 from keras_contrib.layers.crf import CRF
 import matplotlib.pyplot as plt
@@ -73,8 +73,11 @@ model.summary()
 
 #train: epcoch, batch_size
 reduce_lr = LearningRateScheduler(scheduler)
-history = model.fit(train, train_label, epochs=150, batch_size=64, verbose=1, callbacks=[reduce_lr])
-model.save_weights(r'model.h5')
+filepath = 'model-ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5'
+checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+# fit model
+history = model.fit(train, train_label, epochs=50, batch_size=64, verbose=1,
+                    callbacks=[checkpoint, reduce_lr], validation_data=(test, test_label))
 
 score = model.evaluate(test, test_label,batch_size=64, verbose=1)
 print(score)
