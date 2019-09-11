@@ -1,7 +1,7 @@
 from scipy.io import loadmat
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.model_selection import train_test_split
-from keras.layers import Dense, LSTM, TimeDistributed, Bidirectional, Dropout, Input, Conv2D, MaxPool2D, Flatten,Convolution1D,MaxPooling1D
+from keras.layers import Dense, LSTM, TimeDistributed, Bidirectional, Dropout, Input, Masking, MaxPool2D, Embedding,Convolution1D,MaxPooling1D
 from keras.models import Model
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard, CSVLogger
 from keras.utils import plot_model
@@ -17,6 +17,9 @@ class cnn_bilstm():
         conv_stride_size = 2
         pooling_size = (2, 2)
         inp = Input(shape=(sequence_max_len, input_feature))
+        #embedding= Embedding(input_dim=10,ouput_dim=15,mask_zero=True)(inp)
+        masking = Masking(mask_value=0, input_shape=(sequence_max_len, input_feature))(inp)
+        removed_layer = RemoveMask()(masking)
         #conv1 = Conv2D(filters=1, kernel_size=(conv_size, conv_size), strides=(conv_stride_size, conv_stride_size))(inp)
         #maxpool1 = MaxPool2D(pool_size=pooling_size, strides=1, padding="valid")(conv1)
         #conv2 = Conv2D(filters=1, kernel_size=(conv_size, conv_size), strides=(conv_stride_size, conv_stride_size))(maxpool1)
@@ -26,20 +29,19 @@ class cnn_bilstm():
         conv1 = Convolution1D(nb_filter=nb_filter,
                         filter_length=10,
                         border_mode='valid',
-                        activation='relu',
-                        subsample_length=1)(inp)
+                        activation='relu')(removed_layer)
         maxpool1 = MaxPooling1D(pool_length=pool_length)(conv1)
         conv2 =  Convolution1D(nb_filter=nb_filter,
                         filter_length=10,
                         border_mode='valid',
-                        activation='relu',
-                        subsample_length=1)(maxpool1)
+                        activation='relu')(maxpool1)
         maxpool2 = MaxPooling1D(pool_length=pool_length)(conv2)
         # flatten = TimeDistributed(Flatten())(maxpool2)
+        restored_layer = RestoreMask()([maxpool2, masking])
 
-        lstm1 = Bidirectional(LSTM(100, return_sequences=True))(maxpool2)
+        lstm1 = Bidirectional(LSTM(128, return_sequences=True))(maxpool2)
         dropout1 = Dropout(dropout_rate)(lstm1)
-        lstm2 = Bidirectional(LSTM(100))(dropout1)
+        lstm2 = Bidirectional(LSTM(128))(dropout1)
         dropout2 = Dropout(dropout_rate)(lstm2)
         dense = Dense(num_class, activation='softmax')(dropout2)
 
@@ -64,7 +66,7 @@ if __name__ == "__main__":
     input_feature = 180  # 特征个数
     num_class = 6
     dropout_rate = 0.2
-    log_dir = 'F:\\Git repository\\Experimental result\\2019_09_10_keras\\test2\\'
+    log_dir = 'F:\\Git repository\\Experimental result\\2019_09_10_keras\\conv2_maxpool2_bilstm2_lrfix\\'
 
     # 载入mat数据
     mat_data = loadmat("G:/无源感知研究/数据采集/2019_07_18/实验室（滤波后）.mat")
@@ -81,6 +83,7 @@ if __name__ == "__main__":
     sequence_max_len = max(sequenceLengths)
 
     # 创建训练使用的数组，将csi训练数据复制进去，长度不够的进行padding
+    #csi_train_data = keras.preprocessing.sequence.pad_sequences(csi_train, maxlen=sequence_max_len, padding='post', value=0.)
     csi_train_data = np.zeros((sample_count, sequence_max_len, input_feature))
     for i in range(sample_count):
         temp_data = np.vstack(
@@ -113,7 +116,7 @@ if __name__ == "__main__":
     reduce_lr = LearningRateScheduler(cnn_bilstm.scheduler)
     filepath = log_dir + 'model-ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5'
     checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
-    csv_logger = CSVLogger(log_dir + 'training.log')
+    csv_logger = CSVLogger(log_dir + 'training.csv')
     tb = TensorBoard(log_dir=log_dir,  # log 目录
                      histogram_freq=1,  # 按照何等频率（epoch）来计算直方图，0为不计算
                      batch_size=32,  # 用多大量的数据计算直方图
@@ -125,8 +128,8 @@ if __name__ == "__main__":
                      embeddings_metadata=None)
 
     # fit model
-    history = model.fit(train, train_label, epochs=50, batch_size=32, verbose=1,
-                        callbacks=[checkpoint, reduce_lr, tb, csv_logger], validation_data=(test, test_label))
+    history = model.fit(train, train_label, epochs=120, batch_size=32, verbose=1,
+                        callbacks=[checkpoint, tb, csv_logger], validation_data=(test, test_label))
 
     score = model.evaluate(test, test_label, batch_size=32, verbose=1)
     print(score)
