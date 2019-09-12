@@ -1,6 +1,6 @@
 from keras.layers import Dense, LSTM, Masking, Bidirectional, Dropout
 from keras.models import Sequential
-from keras_contrib.layers.crf import CRF
+
 
 def bilstm_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num):
     model = Sequential()
@@ -19,4 +19,5 @@ def bilstm_model(sequence_max_len, input_feature, dropout_rate, num_class, hidde
     # plot_model(model,to_file= log_dir + 'model.png')
     model.summary()
     # model.compile('rmsprop', loss=crf_layer.loss_function, metrics=[crf_layer.accuracy])
+
     return model

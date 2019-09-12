@@ -1,7 +1,8 @@
 from scipy.io import loadmat
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.model_selection import train_test_split
-from keras.layers import Dense, LSTM, TimeDistributed, Bidirectional, Dropout, Input, Masking, MaxPool2D, Embedding,Convolution1D,MaxPooling1D
+from keras.layers import Dense, LSTM, TimeDistributed, Bidirectional, Dropout, Input, Masking, MaxPool2D, Embedding, \
+    Convolution1D, MaxPooling1D
 from keras.models import Model
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard, CSVLogger
 from keras.utils import plot_model
@@ -11,35 +12,36 @@ import keras.backend as K
 import numpy as np
 import keras
 
+
 class cnn_bilstm():
     def get_model(sequence_max_len, input_feature, nb_filter, pool_length, dropout_rate, sample_count):
         conv_size = 2
         conv_stride_size = 2
         pooling_size = (2, 2)
         inp = Input(shape=(sequence_max_len, input_feature))
-        #embedding= Embedding(input_dim=10,ouput_dim=15,mask_zero=True)(inp)
+        # embedding= Embedding(input_dim=10,ouput_dim=15,mask_zero=True)(inp)
         masking = Masking(mask_value=0, input_shape=(sequence_max_len, input_feature))(inp)
         removed_layer = RemoveMask()(masking)
-        #conv1 = Conv2D(filters=1, kernel_size=(conv_size, conv_size), strides=(conv_stride_size, conv_stride_size))(inp)
-        #maxpool1 = MaxPool2D(pool_size=pooling_size, strides=1, padding="valid")(conv1)
-        #conv2 = Conv2D(filters=1, kernel_size=(conv_size, conv_size), strides=(conv_stride_size, conv_stride_size))(maxpool1)
-        #maxpool2 = MaxPool2D(pool_size=pooling_size, strides=1, padding="valid")(conv2)
-        #flatten = TimeDistributed(Flatten())(maxpool2)
+        # conv1 = Conv2D(filters=1, kernel_size=(conv_size, conv_size), strides=(conv_stride_size, conv_stride_size))(inp)
+        # maxpool1 = MaxPool2D(pool_size=pooling_size, strides=1, padding="valid")(conv1)
+        # conv2 = Conv2D(filters=1, kernel_size=(conv_size, conv_size), strides=(conv_stride_size, conv_stride_size))(maxpool1)
+        # maxpool2 = MaxPool2D(pool_size=pooling_size, strides=1, padding="valid")(conv2)
+        # flatten = TimeDistributed(Flatten())(maxpool2)
 
         conv1 = Convolution1D(nb_filter=nb_filter,
-                        filter_length=10,
-                        border_mode='valid',
-                        activation='relu')(removed_layer)
+                              filter_length=10,
+                              border_mode='valid',
+                              activation='relu')(removed_layer)
         maxpool1 = MaxPooling1D(pool_length=pool_length)(conv1)
-        conv2 =  Convolution1D(nb_filter=nb_filter,
-                        filter_length=10,
-                        border_mode='valid',
-                        activation='relu')(maxpool1)
-        maxpool2 = MaxPooling1D(pool_length=pool_length)(conv2)
+        # conv2 =  Convolution1D(nb_filter=nb_filter,
+        #                 filter_length=10,
+        #                 border_mode='valid',
+        #                 activation='relu')(maxpool1)
+        # maxpool2 = MaxPooling1D(pool_length=pool_length)(conv2)
         # flatten = TimeDistributed(Flatten())(maxpool2)
-        restored_layer = RestoreMask()([maxpool2, masking])
+        restored_layer = RestoreMask()([maxpool1, masking])
 
-        lstm1 = Bidirectional(LSTM(128, return_sequences=True))(maxpool2)
+        lstm1 = Bidirectional(LSTM(128, return_sequences=True))(maxpool1)
         dropout1 = Dropout(dropout_rate)(lstm1)
         lstm2 = Bidirectional(LSTM(128))(dropout1)
         dropout2 = Dropout(dropout_rate)(lstm2)
@@ -66,7 +68,7 @@ if __name__ == "__main__":
     input_feature = 180  # 特征个数
     num_class = 6
     dropout_rate = 0.2
-    log_dir = 'F:\\Git repository\\Experimental result\\2019_09_10_keras\\conv2_maxpool2_bilstm2_lrfix\\'
+    log_dir = 'F:\\Git repository\\Experimental result\\2019_09_10_keras\\conv1_maxpool1_bilstm2_lrfix\\'
 
     # 载入mat数据
     mat_data = loadmat("G:/无源感知研究/数据采集/2019_07_18/实验室（滤波后）.mat")
@@ -83,7 +85,7 @@ if __name__ == "__main__":
     sequence_max_len = max(sequenceLengths)
 
     # 创建训练使用的数组，将csi训练数据复制进去，长度不够的进行padding
-    #csi_train_data = keras.preprocessing.sequence.pad_sequences(csi_train, maxlen=sequence_max_len, padding='post', value=0.)
+    # csi_train_data = keras.preprocessing.sequence.pad_sequences(csi_train, maxlen=sequence_max_len, padding='post', value=0.)
     csi_train_data = np.zeros((sample_count, sequence_max_len, input_feature))
     for i in range(sample_count):
         temp_data = np.vstack(
@@ -128,7 +130,7 @@ if __name__ == "__main__":
                      embeddings_metadata=None)
 
     # fit model
-    history = model.fit(train, train_label, epochs=120, batch_size=32, verbose=1,
+    history = model.fit(train, train_label, epochs=150, batch_size=32, verbose=1,
                         callbacks=[checkpoint, tb, csv_logger], validation_data=(test, test_label))
 
     score = model.evaluate(test, test_label, batch_size=32, verbose=1)

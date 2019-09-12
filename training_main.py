@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import keras.backend as K
 from data_processing.mat_load_preprocessing import mat_load_preprocessing
 from model.bilstm_model import bilstm_model
+from model.bilstm_crf_model import bilstm_crf_model
+from model.bilstm_attention_model import bilstm_attention_model
+from model.cnn_bilstm_model import cnn_bilstm_model
 
 
 def plot(log_dir):
@@ -59,9 +62,13 @@ if __name__ == "__main__":
     input_feature = 180  # 特征个数
     num_class = 6
 
-    # parameters for model
+    # parameters for LSTM model
     dropout_rate = 0.2
     hidden_unit_num = 128
+
+    # parameters for Convolution model
+    nb_filter = 64
+    pool_length = 2
 
     # parameters for train
     epochs = 200
@@ -82,6 +89,10 @@ if __name__ == "__main__":
                          dropout_rate=dropout_rate,
                          num_class=num_class,
                          hidden_unit_num=hidden_unit_num)
+    # model = bilstm_crf_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
+    # model = bilstm_attention_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
+    # model = cnn_bilstm_model(sequence_max_len, input_feature, dropout_rate,
+    #                          num_class, hidden_unit_num, nb_filter, pool_length)
 
     # callbacks
     callback_list = callback_maker(log_dir)

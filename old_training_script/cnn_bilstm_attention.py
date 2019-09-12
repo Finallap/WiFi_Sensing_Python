@@ -7,8 +7,8 @@ from keras.optimizers import Adam
 import numpy as np
 
 output_dim = 1
-batch_size = 256 #每轮训练模型时，样本的数量
-epochs = 60 #训练60轮次
+batch_size = 256  # 每轮训练模型时，样本的数量
+epochs = 60  # 训练60轮次
 seq_len = 5
 hidden_size = 128
 
@@ -18,27 +18,29 @@ INPUT_DIM = 180
 lstm_units = 64
 
 from sklearn.preprocessing import MinMaxScaler
+
 scaler = MinMaxScaler(feature_range=(-1, 1))
 scaler.fit(data_train)
 data_train = scaler.transform(data_train)
 data_test = scaler.transform(data_test)
 
 inputs = Input(shape=(TIME_STEPS, INPUT_DIM))
-#drop1 = Dropout(0.3)(inputs)
+# drop1 = Dropout(0.3)(inputs)
 
-x = Conv1D(filters = 64, kernel_size = 1, activation = 'relu')(inputs)  #, padding = 'same'
-#x = Conv1D(filters=128, kernel_size=5, activation='relu')(output1)#embedded_sequences
-x = MaxPooling1D(pool_size = 5)(x)
+x = Conv1D(filters=64, kernel_size=1, activation='relu')(inputs)  # , padding = 'same'
+# x = Conv1D(filters=128, kernel_size=5, activation='relu')(output1)#embedded_sequences
+x = MaxPooling1D(pool_size=5)(x)
 x = Dropout(0.2)(x)
 print(x.shape)
 
 lstm_out = Bidirectional(LSTM(lstm_units, activation='relu'), name='bilstm')(x)
-#lstm_out = LSTM(lstm_units,activation='relu')(x)
+# lstm_out = LSTM(lstm_units,activation='relu')(x)
 print(lstm_out.shape)
 
 from keras import backend as K
 from keras.engine.topology import Layer
 from keras import initializers
+
 
 # Attention GRU network  未用
 class AttLayer(Layer):
@@ -67,15 +69,17 @@ class AttLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], input_shape[-1])
 
+
 from keras.layers import Input, Dense, merge
+
 # ATTENTION PART STARTS HERE
 attention_probs = Dense(128, activation='sigmoid', name='attention_vec')(lstm_out)
-#attention_mul=layers.merge([stm_out,attention_probs], output_shape],mode='concat',concat_axis=1))
-attention_mul =Multiply()([lstm_out, attention_probs])
-#attention_mul = merge([lstm_out, attention_probs],output_shape=32, name='attention_mul', mode='mul')
+# attention_mul=layers.merge([stm_out,attention_probs], output_shape],mode='concat',concat_axis=1))
+attention_mul = Multiply()([lstm_out, attention_probs])
+# attention_mul = merge([lstm_out, attention_probs],output_shape=32, name='attention_mul', mode='mul')
 
 output = Dense(1, activation='sigmoid')(attention_mul)
-#output = Dense(10, activation='sigmoid')(drop2)
+# output = Dense(10, activation='sigmoid')(drop2)
 
 model = Model(inputs=inputs, outputs=output)
 print(model.summary())
