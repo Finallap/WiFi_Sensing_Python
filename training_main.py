@@ -3,6 +3,7 @@ from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard,
 import matplotlib.pyplot as plt
 import keras.backend as K
 import random
+import numpy as np
 from data_processing.mat_load_preprocessing import mat_load_preprocessing
 from model.bilstm_model import bilstm_model
 from model.bilstm_crf_model import bilstm_crf_model
@@ -56,14 +57,6 @@ def callback_maker(log_dir):
                      embeddings_metadata=None)
     return [checkpoint, reduce_lr, tb, csv_logger]
 
-# def generator():
-#     while 1:
-#         row = np.random.randint(0,len(x_train),size=batch_size)
-#         x = np.zeros((batch_size,x_train.shape[-1]))
-#         y = np.zeros((batch_size,))
-#         x = x_train[row]
-#         y = y_train[row]
-#         yield x,y
 
 if __name__ == "__main__":
     # parameters for dataset
@@ -81,7 +74,7 @@ if __name__ == "__main__":
 
     # parameters for train
     epochs = 200
-    batch_size = 64
+    batch_size = 32
     log_dir = 'F:\\Git repository\\Experimental result\\2019_09_12\\bilstm2(256)_lrreduce\\'
 
     [csi_train_data, csi_train_label] = mat_load_preprocessing(mat_path, input_feature)
@@ -89,7 +82,7 @@ if __name__ == "__main__":
     sequence_max_len = csi_train_data.shape[1]
     input_feature = csi_train_data.shape[2]
 
-    #shuffle一下数据
+    # shuffle一下数据
     index = list(range(len(csi_train_data)))
     random.shuffle(index)
     csi_train_data = csi_train_data[index]
@@ -115,6 +108,8 @@ if __name__ == "__main__":
     # fit model
     history = model.fit(train, train_label, epochs=epochs, batch_size=batch_size, verbose=1,
                         callbacks=callback_list, validation_data=(test, test_label))
+    # history = model.fit_generator(generator(), epochs=epochs, steps_per_epoch=len(train) // (batch_size * epochs),
+    #                               verbose=1, callbacks=callback_list, validation_data=(test, test_label))
 
     # evaluate model
     score = model.evaluate(test, test_label, batch_size=batch_size, verbose=1)
