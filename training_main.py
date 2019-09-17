@@ -2,6 +2,7 @@ from sklearn.model_selection import train_test_split
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard, CSVLogger
 import matplotlib.pyplot as plt
 import keras.backend as K
+import random
 from data_processing.mat_load_preprocessing import mat_load_preprocessing
 from model.bilstm_model import bilstm_model
 from model.bilstm_crf_model import bilstm_crf_model
@@ -55,6 +56,14 @@ def callback_maker(log_dir):
                      embeddings_metadata=None)
     return [checkpoint, reduce_lr, tb, csv_logger]
 
+# def generator():
+#     while 1:
+#         row = np.random.randint(0,len(x_train),size=batch_size)
+#         x = np.zeros((batch_size,x_train.shape[-1]))
+#         y = np.zeros((batch_size,))
+#         x = x_train[row]
+#         y = y_train[row]
+#         yield x,y
 
 if __name__ == "__main__":
     # parameters for dataset
@@ -79,6 +88,12 @@ if __name__ == "__main__":
     sample_count = csi_train_data[0]
     sequence_max_len = csi_train_data.shape[1]
     input_feature = csi_train_data.shape[2]
+
+    #shuffle一下数据
+    index = list(range(len(csi_train_data)))
+    random.shuffle(index)
+    csi_train_data = csi_train_data[index]
+    csi_train_label = csi_train_label[index]
 
     # 划分训练集和测试集
     train, test, train_label, test_label = train_test_split(csi_train_data, csi_train_label, test_size=0.3)
