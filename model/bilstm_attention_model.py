@@ -30,13 +30,18 @@ class AttLayer(Layer):
 
 
 def attention_3d_block(inputs):
-    TIME_STEPS = 28
-    # input_dim = int(inputs.shape[2])
+    TIME_STEPS = 20
+    SINGLE_ATTENTION_VECTOR = False
+    # inputs.shape = (batch_size, time_steps, input_dim)
+    input_dim = int(inputs.shape[2])
     a = Permute((2, 1))(inputs)
+    a = Reshape((input_dim, TIME_STEPS))(a) # this line is not useful. It's just to know which dimension is what.
     a = Dense(TIME_STEPS, activation='softmax')(a)
+    if SINGLE_ATTENTION_VECTOR:
+        a = Lambda(lambda x: K.mean(x, axis=1), name='dim_reduction')(a)
+        a = RepeatVector(input_dim)(a)
     a_probs = Permute((2, 1), name='attention_vec')(a)
-    # output_attention_mul = merge([inputs, a_probs], name=’attention_mul’, mode=’mul’)
-    output_attention_mul = multiply([inputs, a_probs], name='attention_mul')
+    output_attention_mul = merge([inputs, a_probs], name='attention_mul', mode='mul')
     return output_attention_mul
 
 
@@ -59,11 +64,15 @@ def bilstm_attention_model(sequence_max_len, input_feature, dropout_rate, num_cl
     # att = AttLayer()(dropout2)
     att = Att(256, dropout2, "att")
     dense = Dense(num_class, activation='softmax')(att)
-    # attention_mul = attention_3d_block(dropout1)
-    # attention_flatten = Flatten()(attention_mul)
-    # drop2 = Dropout(dropout_rate)(attention_flatten)
-    # dense = Dense(num_class, activation='softmax')(drop2)
     model = Model(inp, dense)
+
+    # attention_mul = attention_3d_block(dropout2)
+    # # restnet
+    # attention = concatenate(axis=-1)([inp, attention_mul])
+    # attention = Flatten()(attention)
+    # output = Dense(1, activation='sigmoid')(attention)
+    # model = Model(input=[inp], output=output)
+
 
     # compile:loss, optimizer, metrics
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])

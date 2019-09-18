@@ -8,6 +8,7 @@ from data_processing.mat_load_preprocessing import mat_load_preprocessing
 from model.bilstm_model import bilstm_model
 from model.bilstm_crf_model import bilstm_crf_model
 from model.bilstm_attention_model import bilstm_attention_model
+from model.bilstm_attention_model_1 import bilstm_attention_model_1
 from model.cnn_bilstm_model import cnn_bilstm_model
 
 
@@ -99,8 +100,9 @@ if __name__ == "__main__":
     #                      hidden_unit_num=hidden_unit_num)
     # model = bilstm_crf_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
     # model = bilstm_attention_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
-    model = cnn_bilstm_model(sequence_max_len, input_feature, dropout_rate,
-                             num_class, hidden_unit_num, nb_filter, pool_length)
+    model = bilstm_attention_model_1(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
+    # model = cnn_bilstm_model(sequence_max_len, input_feature, dropout_rate,
+    #                          num_class, hidden_unit_num, nb_filter, pool_length)
 
     # callbacks
     callback_list = callback_maker(log_dir)
