@@ -74,8 +74,8 @@ if __name__ == "__main__":
 
     # parameters for train
     epochs = 200
-    batch_size = 32
-    log_dir = 'F:\\Git repository\\Experimental result\\2019_09_12\\bilstm2(256)_lrreduce\\'
+    batch_size = 64
+    log_dir = 'F:\\Git repository\\Experimental result\\2019_09_17\\cnn_bilstm2(256)_lrreduce\\'
 
     [csi_train_data, csi_train_label] = mat_load_preprocessing(mat_path, input_feature)
     sample_count = csi_train_data[0]
@@ -92,15 +92,15 @@ if __name__ == "__main__":
     train, test, train_label, test_label = train_test_split(csi_train_data, csi_train_label, test_size=0.3)
 
     # build model
-    model = bilstm_model(sequence_max_len=sequence_max_len,
-                         input_feature=input_feature,
-                         dropout_rate=dropout_rate,
-                         num_class=num_class,
-                         hidden_unit_num=hidden_unit_num)
+    # model = bilstm_model(sequence_max_len=sequence_max_len,
+    #                      input_feature=input_feature,
+    #                      dropout_rate=dropout_rate,
+    #                      num_class=num_class,
+    #                      hidden_unit_num=hidden_unit_num)
     # model = bilstm_crf_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
     # model = bilstm_attention_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
-    # model = cnn_bilstm_model(sequence_max_len, input_feature, dropout_rate,
-    #                          num_class, hidden_unit_num, nb_filter, pool_length)
+    model = cnn_bilstm_model(sequence_max_len, input_feature, dropout_rate,
+                             num_class, hidden_unit_num, nb_filter, pool_length)
 
     # callbacks
     callback_list = callback_maker(log_dir)
