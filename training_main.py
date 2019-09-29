@@ -56,7 +56,8 @@ def callback_maker(log_dir):
                      embeddings_freq=0,
                      embeddings_layer_names=None,
                      embeddings_metadata=None)
-    return [checkpoint, reduce_lr, tb, csv_logger]
+    # return [checkpoint, reduce_lr, tb, csv_logger]
+    return [checkpoint, tb, csv_logger]
 
 
 if __name__ == "__main__":
@@ -67,16 +68,16 @@ if __name__ == "__main__":
 
     # parameters for LSTM model
     dropout_rate = 0.2
-    hidden_unit_num = 128
+    hidden_unit_num = 100
 
     # parameters for Convolution model
     nb_filter = 64
     pool_length = 2
 
     # parameters for train
-    epochs = 200
+    epochs = 250
     batch_size = 64
-    log_dir = 'F:\\Git repository\\Experimental result\\2019_09_17\\cnn_bilstm2(256)_lrreduce\\'
+    log_dir = 'F:\\Git repository\\Experimental result\\2019_09_17\\att_bilstm(128)_lrfix\\'
 
     [csi_train_data, csi_train_label] = mat_load_preprocessing(mat_path, input_feature)
     sample_count = csi_train_data[0]

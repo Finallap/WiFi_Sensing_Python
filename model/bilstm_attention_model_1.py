@@ -17,7 +17,9 @@ def bilstm_attention_model_1(sequence_max_len, input_feature, dropout_rate, num_
     # build RNN model with attention
     inputs = Input(shape=(sequence_max_len, input_feature))
     drop1 = Dropout(dropout_rate)(inputs)
-    lstm_out = Bidirectional(LSTM(hidden_unit_num, return_sequences=True), name='bilstm')(drop1)
+    lstm_out = Bidirectional(LSTM(hidden_unit_num, return_sequences=True), name='bilstm1')(drop1)
+    # drop2 = Dropout(dropout_rate)(lstm_out)
+    # lstm_out1 = Bidirectional(LSTM(hidden_unit_num, return_sequences=True), name='bilstm2')(drop2)
     attention_mul = attention_3d_block(lstm_out,sequence_max_len)
     attention_flatten = Flatten()(attention_mul)
     drop2 = Dropout(dropout_rate)(attention_flatten)
