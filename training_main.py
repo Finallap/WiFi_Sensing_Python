@@ -10,6 +10,9 @@ from model.bilstm_crf_model import bilstm_crf_model
 from model.bilstm_attention_model import bilstm_attention_model
 from model.bilstm_attention_model_1 import bilstm_attention_model_1
 from model.cnn_bilstm_model import cnn_bilstm_model
+from model.cnn_model import cnn_model
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
 
 
 def plot(log_dir):
@@ -57,14 +60,21 @@ def callback_maker(log_dir):
                      embeddings_layer_names=None,
                      embeddings_metadata=None)
     # return [checkpoint, reduce_lr, tb, csv_logger]
-    return [checkpoint, tb, csv_logger]
+    # return [checkpoint, tb, csv_logger]
+    return [tb, csv_logger]
 
 
 if __name__ == "__main__":
+    config = tf.ConfigProto()
+    config.gpu_options.allocator_type = 'BFC'  # A "Best-fit with coalescing" algorithm, simplified from a version of dlmalloc.
+    config.gpu_options.per_process_gpu_memory_fraction = 0.95
+    config.gpu_options.allow_growth = True
+    set_session(tf.Session(config=config))
+
     # parameters for dataset
-    mat_path = "G:/无源感知研究/数据采集/2019_07_18/实验室（滤波后）.mat"
-    input_feature = 180  # 特征个数
-    num_class = 6
+    mat_path = "G:/无源感知研究/数据采集/Cross Scene(201911)/Scene1(lab)(滤波后).mat"
+    input_feature = 90  # 特征个数
+    num_class = 12
 
     # parameters for LSTM model
     dropout_rate = 0.2
@@ -75,12 +85,12 @@ if __name__ == "__main__":
     pool_length = 2
 
     # parameters for train
-    epochs = 250
+    epochs = 50
     batch_size = 64
-    log_dir = 'F:\\Git repository\\Experimental result\\2019_09_17\\att_bilstm(128)_lrfix\\'
+    log_dir = 'F:\\Git repository\\Experimental result\\2019-12-03\\cnn_16_32_64_dense_64\\'
 
     [csi_train_data, csi_train_label] = mat_load_preprocessing(mat_path, input_feature)
-    sample_count = csi_train_data[0]
+    sample_count = csi_train_data.shape[0]
     sequence_max_len = csi_train_data.shape[1]
     input_feature = csi_train_data.shape[2]
 
@@ -89,6 +99,8 @@ if __name__ == "__main__":
     random.shuffle(index)
     csi_train_data = csi_train_data[index]
     csi_train_label = csi_train_label[index]
+
+    csi_train_data = csi_train_data.reshape((sample_count, sequence_max_len, input_feature, 1))
 
     # 划分训练集和测试集
     train, test, train_label, test_label = train_test_split(csi_train_data, csi_train_label, test_size=0.3)
@@ -101,7 +113,8 @@ if __name__ == "__main__":
     #                      hidden_unit_num=hidden_unit_num)
     # model = bilstm_crf_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
     # model = bilstm_attention_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
-    model = bilstm_attention_model_1(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
+    # model = bilstm_attention_model_1(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
+    model = cnn_model(sequence_max_len, input_feature, num_class)
     # model = cnn_bilstm_model(sequence_max_len, input_feature, dropout_rate,
     #                          num_class, hidden_unit_num, nb_filter, pool_length)
 
