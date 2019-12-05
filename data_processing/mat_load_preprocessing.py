@@ -1,11 +1,14 @@
 from scipy.io import loadmat
 from sklearn.preprocessing import LabelBinarizer
 import numpy as np
-
+import hdf5storage
+import h5py
 
 def mat_load_preprocessing(mat_path, input_feature):
     # 载入mat数据
-    mat_data = loadmat(mat_path)
+    # mat_data = loadmat(mat_path)
+    # mat_data = hdf5storage.loadmat(mat_path)
+    mat_data =  h5py.File(mat_path)
 
     # 读出csi，确定样本个数
     csi_train = mat_data["csi_train"]

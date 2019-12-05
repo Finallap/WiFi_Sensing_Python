@@ -1,5 +1,5 @@
 from keras.layers import Dense, LSTM, TimeDistributed, Bidirectional, Dropout, Input, Masking, MaxPool2D, Embedding, \
-    Convolution1D, MaxPooling1D, Conv1D, MaxPool1D
+    Convolution1D, MaxPooling1D, Conv1D, MaxPool1D, Flatten
 from keras.models import Model
 from keras_trans_mask import RemoveMask, RestoreMask, CreateMask
 
