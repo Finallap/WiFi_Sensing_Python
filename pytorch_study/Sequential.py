@@ -26,6 +26,8 @@ print(models)
 
 if torch.cuda.is_available():
     models.cuda()
+    x = x.cuda()
+    y = y.cuda()
 
 epoch_n = 301
 learning_rate = 1e-4

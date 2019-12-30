@@ -1,6 +1,7 @@
 from keras import models
 from keras import layers
 from keras.preprocessing.image import ImageDataGenerator
+from keras import optimizers
 import matplotlib.pyplot as plt
 
 train_dir = 'F:\\ML Dataset\\dogs-vs-cats\\\small_train'
@@ -14,6 +15,7 @@ train_datagen = ImageDataGenerator(rescale=(1. / 255),
                                    zoom_range=0.2,
                                    horizontal_flip=True,
                                    fill_mode='nearest')
+train_datagen = ImageDataGenerator(rescale=(1. / 255))
 test_datagen = ImageDataGenerator(rescale=(1. / 255))
 
 train_generator = train_datagen.flow_from_directory(
@@ -29,42 +31,42 @@ validation_generator = train_datagen.flow_from_directory(
     class_mode='binary')
 
 # 手动模型创建
-model = models.Sequential()
-model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(150, 150, 3)))
-model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Conv2D(128, (3, 3), activation='relu'))
-model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Conv2D(256, (3, 3), activation='relu'))
-model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Flatten())
-model.add(layers.Dense(512, activation='relu'))
-model.add(layers.Dense(1, activation='sigmoid'))
-print(model.summary())
-
-# 使用端到端预训练网络
-# from keras.applications import VGG16
-#
-# conv_base = VGG16(weights='imagenet',
-#                   include_top=False,
-#                   input_shape=(150, 150, 3))
-# conv_base.trainable = False
-#
 # model = models.Sequential()
-# model.add(conv_base)
+# model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(150, 150, 3)))
+# model.add(layers.MaxPooling2D((2, 2)))
+# model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+# model.add(layers.MaxPooling2D((2, 2)))
+# model.add(layers.Conv2D(128, (3, 3), activation='relu'))
+# model.add(layers.MaxPooling2D((2, 2)))
+# model.add(layers.Conv2D(256, (3, 3), activation='relu'))
+# model.add(layers.MaxPooling2D((2, 2)))
 # model.add(layers.Flatten())
-# model.add(layers.Dense(256, activation='relu'))
+# model.add(layers.Dense(512, activation='relu'))
 # model.add(layers.Dense(1, activation='sigmoid'))
 # print(model.summary())
 
-model.compile(optimizer='adam',
+# 使用端到端预训练网络
+from keras.applications import VGG16
+
+conv_base = VGG16(weights='imagenet',
+                  include_top=False,
+                  input_shape=(150, 150, 3))
+conv_base.trainable = False
+
+model = models.Sequential()
+model.add(conv_base)
+model.add(layers.Flatten())
+model.add(layers.Dense(256, activation='relu'))
+model.add(layers.Dense(1, activation='sigmoid'))
+print(model.summary())
+
+model.compile(optimizer=optimizers.RMSprop(lr=2e-5),
               loss='binary_crossentropy',
               metrics=['acc'])
 
 history = model.fit_generator(train_generator,
                               steps_per_epoch=100,
-                              epochs=100,
+                              epochs=30,
                               validation_data=validation_generator,
                               validation_steps=50)
 
