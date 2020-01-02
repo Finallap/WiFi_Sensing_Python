@@ -1,2 +1,4 @@
 .idea/
 *.pyc
+keras_study/gan_image/
+*.h5
