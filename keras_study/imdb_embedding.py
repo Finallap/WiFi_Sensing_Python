@@ -4,7 +4,7 @@ from keras import layers
 from keras import models
 
 max_features = 1000
-maxlen = 20
+maxlen = 500
 
 (x_train, y_train), (x_test, y_test) = imdb.load_data()
 
@@ -18,4 +18,11 @@ model.add(layers.Dense(1, activation='sigmoid'))
 model.compile('adam', 'binary_crossentropy', ['acc'])
 print(model.summary())
 
-history = model.fit(x_train, y_train, batch_size=30, epochs=10, validation_data=(x_test, y_test))
+# model = models.Sequential()
+# model.add(layers.Embedding(max_features, 32))
+# model.add(layers.Bidirectional(layers.LSTM(32)))
+# model.add(layers.Dense(1, activation='sigmoid'))
+# model.compile('adam', 'binary_crossentropy', ['acc'])
+# print(model.summary())
+
+history = model.fit(x_train, y_train, batch_size=128, epochs=10, validation_data=(x_test, y_test))

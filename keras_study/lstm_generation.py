@@ -39,7 +39,7 @@ print(model.summary())
 model.compile(optimizer=optimizers.RMSprop(lr=0.01), loss='categorical_crossentropy', metrics=['acc'])
 
 
-# model.fit(x, y, batch_size=128, epochs=60, validation_split=0.3)
+# model.fit(x, y, batch_size=128, epochs=60, verbose=0)
 
 def sample(preds, temperature=1.0):
     preds = np.asarray(preds).astype('float64')
@@ -50,8 +50,6 @@ def sample(preds, temperature=1.0):
     probas = np.random.multinomial(1, preds, 1)
     return np.argmax(probas)
 
-
-import random, sys
 
 import random
 import sys
