@@ -2,3 +2,6 @@
 *.pyc
 keras_study/gan_image/
 *.h5
+/pytorch_study/runs/
+/pytorch_study/data/
+*.png

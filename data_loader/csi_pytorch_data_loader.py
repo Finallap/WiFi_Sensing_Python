@@ -2,7 +2,6 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 import h5py
-import os
 from sklearn.preprocessing import LabelBinarizer
 from scipy.io import loadmat
 import torch.nn as nn
@@ -11,9 +10,15 @@ import torch.optim as optim
 from torchvision.transforms import Compose, CenterCrop, ToTensor, Resize
 import pandas as pd
 from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
+
+log_train = open('log_train.txt', 'w')
+log_test = open('log_test.txt', 'w')
+RESULT_TRAIN = []
+RESULT_TEST = []
 
 
-def load_data(data_path, batch_size, is_train, kwargs):
+def load_data(data_path, batch_size, kwargs):
     sequence_max_len = 677
     input_feature = 270
 
@@ -44,21 +49,21 @@ def load_data(data_path, batch_size, is_train, kwargs):
     from sklearn.model_selection import train_test_split
 
     X_train, X_test, y_train, y_test = train_test_split(csi_train_data, csi_train_label.codes,
-                                                        test_size=0.2)  # split输入的数据集必须转换成numpy类型(只能处理numpy类型的数据)
+                                                        test_size=0.3)  # split输入的数据集必须转换成numpy类型(只能处理numpy类型的数据)
 
-    data_loader = None
-    if is_train == True:
-        X_train = torch.from_numpy(X_train).float()  # numpy 转成 torch 类型
-        y_train = torch.from_numpy(y_train).long()
-        torch_dataset = TensorDataset(X_train, y_train)  # 训练的数据集
-        data_loader = torch.utils.data.DataLoader(torch_dataset, batch_size=batch_size, shuffle=True, **kwargs,drop_last=True)
-    else:
-        if is_train == False:
-            X_test = torch.from_numpy(X_test).float()
-            y_test = torch.from_numpy(y_test).long()
-            torch_dataset = TensorDataset(X_test, y_test)  # 训练的数据集
-            data_loader = torch.utils.data.DataLoader(torch_dataset, batch_size=batch_size, shuffle=True, **kwargs,drop_last=True)
-    return data_loader
+    X_train = torch.from_numpy(X_train).float()
+    y_train = torch.from_numpy(y_train).long()
+    torch_dataset = TensorDataset(X_train, y_train)
+    train_loader = torch.utils.data.DataLoader(torch_dataset, batch_size=batch_size, shuffle=True, **kwargs,
+                                               drop_last=True)
+
+    X_test = torch.from_numpy(X_test).float()
+    y_test = torch.from_numpy(y_test).long()
+    torch_dataset = TensorDataset(X_test, y_test)
+    test_loader = torch.utils.data.DataLoader(torch_dataset, batch_size=batch_size, shuffle=True, **kwargs,
+                                              drop_last=True)
+
+    return train_loader, test_loader
 
 
 class ConvNet(nn.Module):
@@ -113,11 +118,13 @@ def train(args, model, device, train_loader, optimizer, epoch):
         epoch, args['epochs'], total_loss_train, correct, len(train_loader.dataset), acc
     )
     tqdm.write(res_e)
+    log_train.write(res_e + '\n')
+    RESULT_TRAIN.append([epoch, total_loss_train, acc])
 
     return model
 
 
-def test(args, model, device, test_loader):
+def test(args, model, device, test_loader, epoch):
     total_loss_test = 0
     correct = 0
     criterion = nn.CrossEntropyLoss()
@@ -136,14 +143,16 @@ def test(args, model, device, test_loader):
             total_loss_test, correct, len(test_loader.dataset), accuracy
         )
     tqdm.write(res)
+    RESULT_TEST.append([epoch, total_loss_test, accuracy])
+    log_test.write(res + '\n')
 
 
 if __name__ == '__main__':
-    args = {
+    CONFIG = {
         'data_path': "G:/无源感知研究/数据采集/2019_07_18/实验室(3t3r)(resample)(归一化).mat",
         'kwargs': {'num_workers': 2, 'pin_memory': True},
         'batch_size': 32,
-        'epochs': 100,
+        'epochs': 50,
         'lr': 1e-3,
         'momentum': .9,
         'log_interval': 10,
@@ -155,8 +164,7 @@ if __name__ == '__main__':
     }
 
     torch.backends.cudnn.benchmark = True
-    train_loader = load_data(args['data_path'], args['batch_size'], is_train=True, kwargs=args['kwargs'])
-    test_loader = load_data(args['data_path'], args['batch_size'], is_train=False, kwargs=args['kwargs'])
+    train_loader, test_loader = load_data(CONFIG['data_path'], CONFIG['batch_size'], kwargs=CONFIG['kwargs'])
 
     use_cuda = torch.cuda.is_available()
     torch.manual_seed(1)
@@ -164,17 +172,24 @@ if __name__ == '__main__':
 
     kwagrs = {'num_workers': 2, 'pin_memory': True} if use_cuda else {}
 
-    model = ConvNet(args['batch_size'], args['sequence_max_len'], args['input_feature'])
+    model = ConvNet(CONFIG['batch_size'], CONFIG['sequence_max_len'], CONFIG['input_feature'])
     model.to(device)
     # optimizer = optim.Adam(model.parameters())
     optimizer = optim.SGD(
         model.parameters(),
-        lr=args['lr'],
-        momentum=args['momentum'],
-        weight_decay=args['l2_decay']
+        lr=CONFIG['lr'],
+        momentum=CONFIG['momentum'],
+        weight_decay=CONFIG['l2_decay']
     )
 
-    # for epoch in range(epochs):
-    for epoch in tqdm(range(1, args['epochs'] + 1)):
-        train(args, model, device, train_loader, optimizer, epoch)
-        test(args, model, device, test_loader)
+    for epoch in tqdm(range(1, CONFIG['epochs'] + 1)):
+        train(CONFIG, model, device, train_loader, optimizer, epoch)
+        test(CONFIG, model, device, test_loader, epoch)
+
+    torch.save(model, 'model_dann.pkl')
+    log_train.close()
+    log_test.close()
+    res_train = np.asarray(RESULT_TRAIN)
+    res_test = np.asarray(RESULT_TEST)
+    np.savetxt('res_train.csv', res_train, fmt='%.6f', delimiter=',')
+    np.savetxt('res_test.csv', res_test, fmt='%.6f', delimiter=',')
