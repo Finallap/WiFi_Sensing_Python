@@ -5,3 +5,4 @@ keras_study/gan_image/
 /pytorch_study/runs/
 /pytorch_study/data/
 *.png
+*.pkl

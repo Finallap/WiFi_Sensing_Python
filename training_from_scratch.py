@@ -13,12 +13,13 @@ from utils.utils import transform_labels
 # parameters for data and results dir
 root_dir = 'F:\\Git repository\\Experimental result\\2020-01-18\\'
 results_dir = os.path.join(root_dir, 'results', '')
-write_dir_root = os.path.join(root_dir, 'model-results', '')
+scratch_dir_root = os.path.join(root_dir, 'scratch-results', '')
+transfer_dir_root = os.path.join(root_dir, 'transfer-results', '')
 
-ALL_DATASET_NAMES = ['实验室（3t3r）（滤波后）', '会议室(2t3r)(resample)(归一化)', '实验室(3t3r)(未统一长度)']
+ALL_DATASET_NAMES = ['meeting_0718_3t3r', 'lab_0718_3t3r', 'lab_1911_3t3r']
 
-batch_size = 32
-nb_epochs = 50
+batch_size = 64
+nb_epochs = 1000
 verbose = True
 
 
@@ -56,12 +57,11 @@ def build_model(input_shape, nb_classes, pre_model=None):
 
 def callback_maker(model_save_path, log_dir):
     # reduce learning rate
-    reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.75,
-                                                  patience=10, min_lr=1e-5)
+    reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.8,
+                                                  patience=5, min_lr=1e-5)
     # model checkpoint
     model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=model_save_path, monitor='val_loss',
                                                        save_best_only=True)
-    csv_logger = keras.callbacks.CSVLogger(log_dir + 'training.csv')
     tb = keras.callbacks.TensorBoard(log_dir=log_dir,  # log 目录
                                      histogram_freq=1,  # 按照何等频率（epoch）来计算直方图，0为不计算
                                      batch_size=32,  # 用多大量的数据计算直方图
@@ -71,14 +71,16 @@ def callback_maker(model_save_path, log_dir):
                                      embeddings_freq=0,
                                      embeddings_layer_names=None,
                                      embeddings_metadata=None)
-    return [model_checkpoint, reduce_lr, tb, csv_logger]
+    early_stopping = keras.callbacks.EarlyStopping(monitor='loss', min_delta=0.005, patience=10, verbose=2, mode='auto')
+    return [model_checkpoint, reduce_lr, tb, early_stopping]
 
 
 def train(x_train, y_train, x_test, y_test, pre_model=None):
     y_true_val = None
     y_pred_val = None
 
-    mini_batch_size = int(min(x_train.shape[0] / 10, batch_size))
+    # mini_batch_size = int(min(x_train.shape[0] / 10, batch_size))
+    mini_batch_size = batch_size
 
     nb_classes = len(np.unique(np.concatenate((y_train, y_test), axis=0)))
 
@@ -147,16 +149,45 @@ def read_dataset(root_dir, dataset_name):
     return x_train, x_test, y_train, y_test
 
 
-for dataset_name in ALL_DATASET_NAMES:
-    # get the directory of the model for this current dataset_name
-    write_output_dir = os.path.join(write_dir_root, dataset_name, '')
-    # set model output path
-    model_save_path = os.path.join(write_output_dir, 'best_model.hdf5')
-    # create directory
-    create_directory(write_output_dir)
+if __name__ == '__main__':
+    argv = 'training_from_scratch'
 
-    x_train, x_test, y_train, y_test = read_dataset(root_dir, dataset_name)
+    if argv == 'training_from_scratch':
+        for dataset_name in ALL_DATASET_NAMES:
+            # get the directory of the model for this current dataset_name
+            scratch_output_dir = os.path.join(scratch_dir_root, dataset_name, '')
+            write_output_dir = scratch_output_dir
+            # set model output path
+            model_save_path = os.path.join(scratch_output_dir, 'best_model.hdf5')
+            # create directory
+            create_directory(scratch_output_dir)
 
-    callbacks = callback_maker(model_save_path, write_output_dir)
+            x_train, x_test, y_train, y_test = read_dataset(root_dir, dataset_name)
+            callbacks = callback_maker(model_save_path, scratch_output_dir)
+            train(x_train, y_train, x_test, y_test)
 
-    train(x_train, y_train, x_test, y_test)
+    elif argv == 'transfer_learning':
+        # loop through all datasets
+        for dataset_name in ALL_DATASET_NAMES:
+            # get the directory of the model for this current dataset_name
+            scratch_output_dir = os.path.join(scratch_dir_root, dataset_name, '')
+            # loop through all the datasets to transfer to the learning
+            for dataset_name_tranfer in ALL_DATASET_NAMES:
+                # check if its the same dataset
+                if dataset_name == dataset_name_tranfer:
+                    continue
+                # set the output directory to write new transfer learning results
+                transfer_output_dir = os.path.join(transfer_dir_root, dataset_name, dataset_name_tranfer, '')
+                transfer_output_dir = create_directory(transfer_output_dir)
+                if transfer_output_dir is None:
+                    continue
+                print('Tranfering from ' + dataset_name + ' to ' + dataset_name_tranfer)
+                # load the model to transfer to other datasets
+                pre_model = keras.models.load_model(os.path.join(scratch_output_dir, 'best_model.hdf5'))
+                # output file path for the new tranfered re-trained model
+                model_save_path = os.path.join(transfer_output_dir, 'best_model.hdf5')
+                write_output_dir = model_save_path
+
+                x_train, x_test, y_train, y_test = read_dataset(root_dir, dataset_name_tranfer)
+                callbacks = callback_maker(model_save_path, transfer_output_dir)
+                train(x_train, y_train, x_test, y_test, pre_model)
