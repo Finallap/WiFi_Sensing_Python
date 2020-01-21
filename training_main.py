@@ -3,13 +3,16 @@ from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard,
 import matplotlib.pyplot as plt
 import keras.backend as K
 import random
+import keras
 import numpy as np
+from utils.utils import transform_labels
 from data_processing.mat_load_preprocessing import mat_load_preprocessing
 from model.bilstm_model import bilstm_model
 from model.bilstm_crf_model import bilstm_crf_model
 from model.bilstm_attention_model import bilstm_attention_model
 from model.bilstm_attention_model_1 import bilstm_attention_model_1
 from model.cnn_bilstm_model import cnn_bilstm_model
+from model.conv1d_model import conv1d_model
 from model.cnn_model import cnn_model
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -48,7 +51,7 @@ def callback_maker(log_dir):
 
     reduce_lr = LearningRateScheduler(scheduler)
     filepath = log_dir + 'model-ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5'
-    checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+    checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True)
     csv_logger = CSVLogger(log_dir + 'training.csv')
     tb = TensorBoard(log_dir=log_dir,  # log 目录
                      histogram_freq=1,  # 按照何等频率（epoch）来计算直方图，0为不计算
@@ -61,7 +64,7 @@ def callback_maker(log_dir):
                      embeddings_metadata=None)
     # return [checkpoint, reduce_lr, tb, csv_logger]
     # return [checkpoint, tb, csv_logger]
-    return [tb, csv_logger]
+    return [reduce_lr, tb, csv_logger]
 
 
 if __name__ == "__main__":
@@ -72,24 +75,23 @@ if __name__ == "__main__":
     set_session(tf.Session(config=config))
 
     # parameters for dataset
-    mat_path = "G:/无源感知研究/数据采集/Cross Scene(201911)/Scene1(lab)(滤波后).mat"
-    input_feature = 90  # 特征个数
-    num_class = 12
+    mat_path = "F:\\Git repository\\Experimental result\\2020-01-18\\datasets\\实验室(3t3r)(未统一长度).mat"
+    # mat_path = "G:/无源感知研究/数据采集/Cross Scene(201911)/Scene1(lab)(滤波后).mat"
 
     # parameters for LSTM model
     dropout_rate = 0.2
-    hidden_unit_num = 100
+    hidden_unit_num = 50
 
     # parameters for Convolution model
     nb_filter = 64
     pool_length = 2
 
     # parameters for train
-    epochs = 50
+    epochs = 150
     batch_size = 64
-    log_dir = 'F:\\Git repository\\Experimental result\\2019-12-03\\cnn_16_32_64_dense_64\\'
+    log_dir = 'F:\\Git repository\\Experimental result\\2020-01-15\\conv1d_meeting_201911_lr_reduce_1\\'
 
-    [csi_train_data, csi_train_label] = mat_load_preprocessing(mat_path, input_feature)
+    [csi_train_data, csi_train_label] = mat_load_preprocessing(mat_path)
     sample_count = csi_train_data.shape[0]
     sequence_max_len = csi_train_data.shape[1]
     input_feature = csi_train_data.shape[2]
@@ -100,10 +102,24 @@ if __name__ == "__main__":
     csi_train_data = csi_train_data[index]
     csi_train_label = csi_train_label[index]
 
-    csi_train_data = csi_train_data.reshape((sample_count, sequence_max_len, input_feature, 1))
+    # 训练conv网络时，需要reshape成为4维
+    # csi_train_data = csi_train_data.reshape((sample_count, sequence_max_len, input_feature, 1))
 
     # 划分训练集和测试集
     train, test, train_label, test_label = train_test_split(csi_train_data, csi_train_label, test_size=0.3)
+
+    # 计算类别数量
+    num_class = len(np.unique(np.concatenate((train_label, test_label), axis=0)))
+
+    # make the min to zero of labels
+    train_label, test_label = transform_labels(train_label, test_label)
+
+    # save orignal y because later we will use binary
+    y_true = test_label.astype(np.int64)
+
+    # transform the labels from integers to one hot vectors
+    train_label = keras.utils.to_categorical(train_label, num_class)
+    test_label = keras.utils.to_categorical(test_label, num_class)
 
     # build model
     # model = bilstm_model(sequence_max_len=sequence_max_len,
@@ -114,9 +130,10 @@ if __name__ == "__main__":
     # model = bilstm_crf_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
     # model = bilstm_attention_model(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
     # model = bilstm_attention_model_1(sequence_max_len, input_feature, dropout_rate, num_class, hidden_unit_num)
-    model = cnn_model(sequence_max_len, input_feature, num_class)
+    # model = cnn_model(sequence_max_len, input_feature, num_class)
     # model = cnn_bilstm_model(sequence_max_len, input_feature, dropout_rate,
     #                          num_class, hidden_unit_num, nb_filter, pool_length)
+    model = conv1d_model(input_feature, num_class, pre_model=None)
 
     # callbacks
     callback_list = callback_maker(log_dir)

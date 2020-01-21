@@ -4,16 +4,17 @@ import numpy as np
 import hdf5storage
 import h5py
 
-def mat_load_preprocessing(mat_path, input_feature):
+def mat_load_preprocessing(mat_path):
     # 载入mat数据
     # mat_data = loadmat(mat_path)
-    # mat_data = hdf5storage.loadmat(mat_path)
-    mat_data =  h5py.File(mat_path)
+    mat_data = hdf5storage.loadmat(mat_path)
+    # mat_data =  h5py.File(mat_path)
 
     # 读出csi，确定样本个数
     csi_train = mat_data["csi_train"]
     sample_count = len(csi_train)  # 训练样本个数
     csi_train = csi_train.reshape(sample_count)
+    input_feature = csi_train[0].shape[0]
 
     # 确定各个样本的长度
     sequenceLengths = []
@@ -32,9 +33,12 @@ def mat_load_preprocessing(mat_path, input_feature):
     csi_train_label = []
     for i in range(len(mat_data["csi_label"])):
         csi_train_label.append(mat_data["csi_label"][i][0][0])
+        # csi_train_label.append(mat_data["csi_label"][i][0][0][0])
+    csi_train_label = np.array(csi_train_label)
+
     # 将训练标签数组进行one-hot编码
-    lb = LabelBinarizer()
-    csi_train_label = lb.fit_transform(csi_train_label)
+    # lb = LabelBinarizer()
+    # csi_train_label = lb.fit_transform(csi_train_label)
 
     return [csi_train_data, csi_train_label]
 
