@@ -3,20 +3,21 @@ import numpy as np
 import time
 import random
 import os
+from keras.utils import multi_gpu_model
 from sklearn.model_selection import train_test_split
 from data_processing.mat_load_preprocessing import mat_load_preprocessing
 from utils.utils import create_directory
-from utils.utils import read_all_datasets
 from utils.utils import save_logs
 from utils.utils import transform_labels
+import utils.plot_utils as plot_utils
 
 # parameters for data and results dir
-root_dir = 'F:\\Git repository\\Experimental result\\2020-01-18\\'
+root_dir = 'F:\\Git repository\\Experimental result\\2020-01-21\\'
 results_dir = os.path.join(root_dir, 'results', '')
 scratch_dir_root = os.path.join(root_dir, 'scratch-results', '')
 transfer_dir_root = os.path.join(root_dir, 'transfer-results', '')
 
-ALL_DATASET_NAMES = ['meeting_0718_3t3r', 'lab_0718_3t3r', 'lab_1911_3t3r']
+ALL_DATASET_NAMES = ['meeting_0718_3t3r', 'lab_0718_3t3r', 'lab_1911_3t3r', 'widar3_room2_20181118_1t3r3ap', 'widar3_room1_20181109_1t3r3ap']
 
 batch_size = 64
 nb_epochs = 1000
@@ -62,16 +63,17 @@ def callback_maker(model_save_path, log_dir):
     # model checkpoint
     model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=model_save_path, monitor='val_loss',
                                                        save_best_only=True)
+
     tb = keras.callbacks.TensorBoard(log_dir=log_dir,  # log 目录
                                      histogram_freq=1,  # 按照何等频率（epoch）来计算直方图，0为不计算
-                                     batch_size=32,  # 用多大量的数据计算直方图
+                                     batch_size=64,  # 用多大量的数据计算直方图
                                      write_graph=True,  # 是否存储网络结构图
                                      write_grads=False,  # 是否可视化梯度直方图
                                      write_images=False,  # 是否可视化参数
                                      embeddings_freq=0,
                                      embeddings_layer_names=None,
                                      embeddings_metadata=None)
-    early_stopping = keras.callbacks.EarlyStopping(monitor='loss', min_delta=0.005, patience=10, verbose=2, mode='auto')
+    early_stopping = keras.callbacks.EarlyStopping(monitor='loss', min_delta=2e-5, patience=10, verbose=2, mode='auto')
     return [model_checkpoint, reduce_lr, tb, early_stopping]
 
 
@@ -150,9 +152,12 @@ def read_dataset(root_dir, dataset_name):
 
 
 if __name__ == '__main__':
-    argv = 'training_from_scratch'
+    argv = 'visualize_transfer_learning'
 
-    if argv == 'training_from_scratch':
+    if argv == 'visualize_transfer_learning':
+        plot_utils.visualize_transfer_learning(root_dir)
+
+    elif argv == 'training_from_scratch':
         for dataset_name in ALL_DATASET_NAMES:
             # get the directory of the model for this current dataset_name
             scratch_output_dir = os.path.join(scratch_dir_root, dataset_name, '')
@@ -186,7 +191,7 @@ if __name__ == '__main__':
                 pre_model = keras.models.load_model(os.path.join(scratch_output_dir, 'best_model.hdf5'))
                 # output file path for the new tranfered re-trained model
                 model_save_path = os.path.join(transfer_output_dir, 'best_model.hdf5')
-                write_output_dir = model_save_path
+                write_output_dir = transfer_output_dir
 
                 x_train, x_test, y_train, y_test = read_dataset(root_dir, dataset_name_tranfer)
                 callbacks = callback_maker(model_save_path, transfer_output_dir)
