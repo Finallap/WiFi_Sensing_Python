@@ -11,6 +11,8 @@ from torchvision.transforms import Compose, CenterCrop, ToTensor, Resize
 import pandas as pd
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
+from torch.autograd import variable
+import time
 
 log_train = open('log_train.txt', 'w')
 log_test = open('log_test.txt', 'w')
@@ -63,7 +65,7 @@ def load_data(data_path, batch_size, kwargs):
     test_loader = torch.utils.data.DataLoader(torch_dataset, batch_size=batch_size, shuffle=True, **kwargs,
                                               drop_last=True)
 
-    return train_loader, test_loader
+    return train_loader, test_loader, csi_train_label
 
 
 class ConvNet(nn.Module):
@@ -91,7 +93,32 @@ class ConvNet(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-def train(args, model, device, train_loader, optimizer, epoch):
+class CSILSTM(nn.Module):
+    def __init__(self, batch_size, sequence_max_len, input_feature, hidden_size, num_class, num_layer=2):
+        super().__init__()
+        self.rnn = nn.LSTM(input_feature, hidden_size, num_layer)
+        self.fc2 = nn.Linear(hidden_size, num_class)
+
+    def forward(self, inp):
+        bs = inp.size()[1]
+        if bs != self.bs:
+            self.bs = bs
+        e_out = self.e(inp)
+        h0 = c0 = variable(e_out.data.new(*(self.nl, self.bs, self.hidden_size)).zero_())
+        rnn_o, _ = self.rnn(e_out, (h0, c0))
+        rnn_o = rnn_o[-1]
+        fc = F.dropout(self.fc2(rnn_o), p=0.8)
+        return F.log_softmax(fc, dim=1)
+
+        x, = self.rnn(x)
+        s, b, h = x.size()
+        x = x.view(s * b, h)
+        x = self.layer2(x)
+        x = x.view(s, b, -1)
+        return x
+
+
+def train(args, model, device, train_loader, optimizer, epoch, writer):
     total_loss_train = 0
     criterion = nn.CrossEntropyLoss().to(device)
     correct = 0
@@ -113,18 +140,22 @@ def train(args, model, device, train_loader, optimizer, epoch):
             epoch, args['epochs'], batch_idx + 1, len(train_loader), loss.data
         )
     total_loss_train /= len(train_loader)
-    acc = correct * 100. / len(train_loader.dataset)
+    accuracy = correct * 100. / len(train_loader.dataset)
     res_e = 'Epoch: [{}/{}], training loss: {:.6f}, correct: [{}/{}], training accuracy: {:.4f}%'.format(
-        epoch, args['epochs'], total_loss_train, correct, len(train_loader.dataset), acc
+        epoch, args['epochs'], total_loss_train, correct, len(train_loader.dataset), accuracy
     )
+    # TensorBoard中进行记录
+    writer.add_scalar('training loss', total_loss_train, epoch, time.time())
+    writer.add_scalar('training acc', accuracy, epoch, time.time())
+
     tqdm.write(res_e)
     log_train.write(res_e + '\n')
-    RESULT_TRAIN.append([epoch, total_loss_train, acc])
+    RESULT_TRAIN.append([epoch, total_loss_train, accuracy])
 
     return model
 
 
-def test(args, model, device, test_loader, epoch):
+def test(args, model, device, test_loader, epoch, writer):
     total_loss_test = 0
     correct = 0
     criterion = nn.CrossEntropyLoss()
@@ -142,9 +173,53 @@ def test(args, model, device, test_loader, epoch):
         res = 'Test: total loss: {:.6f}, correct: [{}/{}], testing accuracy: {:.4f}%'.format(
             total_loss_test, correct, len(test_loader.dataset), accuracy
         )
+    # TensorBoard中进行记录
+    writer.add_scalar('validation loss', loss, epoch, time.time())
+    writer.add_scalar('validation acc', accuracy, epoch, time.time())
+
     tqdm.write(res)
     RESULT_TEST.append([epoch, total_loss_test, accuracy])
     log_test.write(res + '\n')
+
+
+def create_pr_curve(model, test_loader, csi_train_label):
+    # helper function
+    def add_pr_curve_tensorboard(class_index, test_probs, test_preds, global_step=0):
+        '''
+        Takes in a "class_index" from 0 to 9 and plots the corresponding
+        precision-recall curve
+        '''
+        tensorboard_preds = test_preds == class_index
+        tensorboard_probs = test_probs[:, class_index]
+
+        writer.add_pr_curve(csi_train_label.categories[class_index],
+                            tensorboard_preds,
+                            tensorboard_probs,
+                            global_step=global_step)
+        writer.close()
+
+    # 1. gets the probability predictions in a test_size x num_classes Tensor
+    # 2. gets the preds in a test_size Tensor
+    # takes ~10 seconds to run
+    class_probs = []
+    class_preds = []
+    with torch.no_grad():
+        for batch_id, (data, target) in enumerate(test_loader):
+            data, target = data.to(device), target.to(device)
+            model.eval()
+            output = model(data)
+            class_probs_batch = [F.softmax(el, dim=0) for el in output]
+            _, class_preds_batch = torch.max(output, 1)
+
+            class_probs.append(class_probs_batch)
+            class_preds.append(class_preds_batch)
+
+    test_probs = torch.cat([torch.stack(batch) for batch in class_probs])
+    test_preds = torch.cat(class_preds)
+
+    # plot all the pr curves
+    for i in range(len(csi_train_label.categories)):
+        add_pr_curve_tensorboard(i, test_probs, test_preds)
 
 
 if __name__ == '__main__':
@@ -164,16 +239,20 @@ if __name__ == '__main__':
     }
 
     torch.backends.cudnn.benchmark = True
-    train_loader, test_loader = load_data(CONFIG['data_path'], CONFIG['batch_size'], kwargs=CONFIG['kwargs'])
+    train_loader, test_loader, csi_train_label = load_data(CONFIG['data_path'], CONFIG['batch_size'],
+                                                           kwargs=CONFIG['kwargs'])
 
     use_cuda = torch.cuda.is_available()
     torch.manual_seed(1)
     device = torch.device('cuda' if use_cuda else 'cpu')
 
-    kwagrs = {'num_workers': 2, 'pin_memory': True} if use_cuda else {}
+    # 使用TensorBoard进行记录
+    writer = SummaryWriter('tensorboard')
 
     model = ConvNet(CONFIG['batch_size'], CONFIG['sequence_max_len'], CONFIG['input_feature'])
     model.to(device)
+    # writer.add_graph(model)
+
     # optimizer = optim.Adam(model.parameters())
     optimizer = optim.SGD(
         model.parameters(),
@@ -183,10 +262,13 @@ if __name__ == '__main__':
     )
 
     for epoch in tqdm(range(1, CONFIG['epochs'] + 1)):
-        train(CONFIG, model, device, train_loader, optimizer, epoch)
-        test(CONFIG, model, device, test_loader, epoch)
+        train(CONFIG, model, device, train_loader, optimizer, epoch, writer)
+        test(CONFIG, model, device, test_loader, epoch, writer)
+
+    create_pr_curve(model, test_loader, csi_train_label)
 
     torch.save(model, 'model_dann.pkl')
+    writer.close()
     log_train.close()
     log_test.close()
     res_train = np.asarray(RESULT_TRAIN)
