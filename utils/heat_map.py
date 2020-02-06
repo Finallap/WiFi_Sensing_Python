@@ -33,6 +33,8 @@ plot_sns = sns.heatmap(ax=ax, data=epoch_df, cmap='RdBu', annot=True, fmt=".1f",
                        xticklabels=True, yticklabels=True, vmin=-40, vmax=40)
 plot_sns.collections[0].colorbar.ax.tick_params(labelsize=10)
 plot_sns.collections[0].colorbar.set_label('% of best model epoch variation after transfer', size=10)
+plot_sns.set_ylabel('Source training model')
+plot_sns.set_xlabel('Target dataset')
 # plt.show()
 figure_name = save_dir_out + 'epoch_variation.pdf'
 plot_sns.get_figure().savefig(figure_name, bbox_inches='tight')
@@ -42,6 +44,8 @@ plot_sns = sns.heatmap(ax=ax, data=acc_df, cmap='RdBu', annot=True, fmt=".1f",
                        xticklabels=True, yticklabels=True, vmin=-5, vmax=5)
 plot_sns.collections[0].colorbar.ax.tick_params(labelsize=10)
 plot_sns.collections[0].colorbar.set_label('% of best model accuracy variation after transfer', size=10)
+plot_sns.set_ylabel('Source training model')
+plot_sns.set_xlabel('Target dataset')
 # plt.show()
 figure_name = save_dir_out + 'acc_variation.pdf'
 plot_sns.get_figure().savefig(figure_name, bbox_inches='tight')
