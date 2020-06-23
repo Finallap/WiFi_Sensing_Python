@@ -78,6 +78,7 @@ def main():
 
     model = buildModel(CONFIG)
     model.to(device)
+    print(model)
     # optimizer = optim.SGD(model.parameters(), lr=CONFIG['lr'], momentum=CONFIG['momentum'])
     optimizer = optim.RMSprop(model.parameters(), lr=CONFIG['lr'], eps=1e-2)
 
@@ -91,4 +92,5 @@ def main():
 
 
 if __name__ == '__main__':
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
     main()
