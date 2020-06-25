@@ -61,8 +61,9 @@ if __name__ == '__main__':
     # thread_nums = [32, 24, 16, 12, 8, 4, 2, 1]
     # thread_nums = [32, 24, 2, 1]
     # thread_nums = [16, 12, 8, 4]
-    thread_nums = [32]
+    thread_nums = [48]
 
+    whole_start_time = time.clock()
     for thread_num in thread_nums:
         training_data = []
         # 起始时间
@@ -93,4 +94,5 @@ if __name__ == '__main__':
         # 结束时间
         end_time = time.clock()
         print("Thread_num: %d, cost time is: %f" % (thread_num, end_time - start_time))
-    print("Sum time is: %f" % time.process_time())
+    whole_end_time = time.clock()
+    print("Sum time is: %f" % whole_end_time - whole_start_time)
