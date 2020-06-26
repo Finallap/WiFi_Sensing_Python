@@ -2,16 +2,12 @@ from __future__ import print_function
 import time
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 import os
-import math
-from torch.utils import model_zoo
 from torch.utils.tensorboard import SummaryWriter
-import data_processing.mat_load_preprocessing_pytorch as load_csi_data
-from pytorch_model import Net
+import data_loader.mat_load_preprocessing_pytorch as load_csi_data
+from pytorch_model.Net import buildModel
 
 # 这个版本的acc和loss计算可能有问题
 
@@ -26,7 +22,7 @@ if __name__ == '__main__':
 
     writer = SummaryWriter(CONFIG['tensorboard_log_path'])
 
-    model = Net(CONFIG)
+    model = buildModel(CONFIG)
     model = model.cuda()
     print(model)
 
